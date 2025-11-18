@@ -13,7 +13,9 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "core-agents": "*",
-    "shared-types": "*"
+    "shared-types": "*",
+    "@supabase/supabase-js": "^2.39.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

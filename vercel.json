@@ -1,0 +1,36 @@
+{
+  "buildCommand": "cd apps/web && npm install && npm run build",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "OPENAI_API_KEY": "@openai-api-key",
+    "CLEARSIGHT_DEMO_MODE": "false",
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
+      "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, x-api-key"
+        }
+      ]
+    }
+  ]
+}

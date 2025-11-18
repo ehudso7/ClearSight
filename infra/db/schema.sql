@@ -147,7 +147,7 @@ CREATE INDEX idx_sales_leads_status ON sales_leads(status);
 -- Insert demo client
 INSERT INTO clients (id, name, contact_name, contact_email, active)
 VALUES (
-  'demo-client-00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000001',
   'Demo Company Inc.',
   'Demo User',
   'demo@example.com',

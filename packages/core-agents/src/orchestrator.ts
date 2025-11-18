@@ -29,7 +29,12 @@ export async function analyzeKpis(raw: RawClientData): Promise<KPI[]> {
 
   // Clean potential markdown formatting
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleanText);
+  try {
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Failed to parse KPI analysis response:", cleanText.substring(0, 200));
+    throw new Error(`Failed to parse KPI analysis: ${error instanceof Error ? error.message : 'Invalid JSON'}`);
+  }
 }
 
 /** Worker C – ISSUE DETECTOR */
@@ -43,7 +48,12 @@ export async function detectIssues(raw: RawClientData, kpis: KPI[]): Promise<Iss
   );
 
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleanText);
+  try {
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Failed to parse issue detection response:", cleanText.substring(0, 200));
+    throw new Error(`Failed to parse issue detection: ${error instanceof Error ? error.message : 'Invalid JSON'}`);
+  }
 }
 
 /** Worker D – STRATEGIST */
@@ -57,7 +67,12 @@ export async function generateActions(kpis: KPI[], issues: Issue[]): Promise<Act
   );
 
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleanText);
+  try {
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Failed to parse strategist response:", cleanText.substring(0, 200));
+    throw new Error(`Failed to parse action recommendations: ${error instanceof Error ? error.message : 'Invalid JSON'}`);
+  }
 }
 
 /** Worker E – REPORT GENERATOR */
@@ -123,7 +138,12 @@ export async function generateSupportReply(subject: string, body: string, histor
   );
 
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleanText);
+  try {
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Failed to parse support reply response:", cleanText.substring(0, 200));
+    throw new Error(`Failed to parse support reply: ${error instanceof Error ? error.message : 'Invalid JSON'}`);
+  }
 }
 
 /** Sales SDR Agent */
@@ -137,5 +157,10 @@ export async function personalizeSalesOutreach(lead: any, template: string): Pro
   );
 
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleanText);
+  try {
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Failed to parse sales outreach response:", cleanText.substring(0, 200));
+    throw new Error(`Failed to parse sales outreach: ${error instanceof Error ? error.message : 'Invalid JSON'}`);
+  }
 }

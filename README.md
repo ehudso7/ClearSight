@@ -117,6 +117,29 @@ clearsight-ops/
 
 ---
 
+## ⚠️ Current Status
+
+**This is a framework/prototype, not a production-ready application.**
+
+The codebase provides:
+- ✅ Complete application structure and architecture
+- ✅ Database schema and API routes
+- ✅ Demo mode with synthetic data
+- ✅ Comprehensive documentation and business materials
+- ⚠️ **Integration stubs** - Real data fetchers need implementation
+- ⚠️ **Database stubs** - Supabase operations need implementation
+- ⚠️ **No authentication** - Client auth/authorization not implemented
+
+To make this production-ready, you need to:
+1. Implement real integrations in `apps/web/lib/dataFetchers.ts`
+2. Implement Supabase operations in `apps/web/lib/db.ts`
+3. Add authentication and authorization
+4. Add input validation and rate limiting
+5. Set up monitoring and error tracking
+6. Complete end-to-end testing
+
+---
+
 ## Quick Start
 
 ### Prerequisites

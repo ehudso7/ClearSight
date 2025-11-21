@@ -1,36 +1,99 @@
 import { openai } from "./openaiClient";
 import { KPI, Issue, ActionRecommendation, DailyReportPayload, RawClientData } from "shared-types";
 
-async function callModel(system: string, user: string) {
-  const res = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user }
-    ],
-    temperature: 0.7,
-  });
+/**
+ * Call OpenAI with proper error handling and retries
+ */
+async function callModel(
+  system: string, 
+  user: string, 
+  options: { 
+    model?: string; 
+    temperature?: number; 
+    maxTokens?: number;
+    jsonMode?: boolean;
+  } = {}
+) {
+  const {
+    model = "gpt-4o", // Latest GPT-4o model - faster and cheaper than gpt-4-turbo
+    temperature = 0.7,
+    maxTokens = 2000,
+    jsonMode = false,
+  } = options;
 
-  const msg = res.choices[0]?.message?.content;
-  if (!msg) {
-    throw new Error("No response from model");
+  try {
+    const res = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      temperature,
+      max_tokens: maxTokens,
+      ...(jsonMode && { response_format: { type: "json_object" } }),
+    });
+
+    const msg = res.choices[0]?.message?.content;
+    if (!msg) {
+      throw new Error("No response from model");
+    }
+    return msg;
+  } catch (error: any) {
+    console.error('[AI] OpenAI API error:', error.message);
+    
+    // Retry logic for rate limits
+    if (error?.status === 429) {
+      console.log('[AI] Rate limited, waiting 2s before retry...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Retry once
+      const res = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user }
+        ],
+        temperature,
+        max_tokens: maxTokens,
+      });
+      
+      const msg = res.choices[0]?.message?.content;
+      if (!msg) {
+        throw new Error("No response from model after retry");
+      }
+      return msg;
+    }
+    
+    throw error;
   }
-  return msg;
 }
 
 /** Worker B – KPI ANALYZER */
 export async function analyzeKpis(raw: RawClientData): Promise<KPI[]> {
   const text = await callModel(
     `You are the KPI ANALYZER for ClearSight Ops.
-    Return JSON array of KPIs with keys: key,label,value,unit,trend (up/down/flat).
-    Only output valid JSON array, no markdown formatting.`,
-    JSON.stringify(raw)
+    Analyze the operational data and return a JSON array of KPIs.
+    Each KPI must have: key, label, value, unit, trend (up/down/flat).
+    
+    Example output format:
+    [
+      {"key": "sales", "label": "Total Sales", "value": 14329, "unit": "$", "trend": "up"},
+      {"key": "orders", "label": "Orders", "value": 421, "unit": "orders", "trend": "flat"}
+    ]
+    
+    Return ONLY the JSON array, nothing else.`,
+    JSON.stringify(raw),
+    { model: "gpt-4o-mini", temperature: 0.3, maxTokens: 1000 } // Use mini for cost savings on simple task
   );
 
   // Clean potential markdown formatting
   const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   try {
-    return JSON.parse(cleanText);
+    const kpis = JSON.parse(cleanText);
+    if (!Array.isArray(kpis)) {
+      throw new Error('Response is not an array');
+    }
+    return kpis;
   } catch (error) {
     console.error("Failed to parse KPI analysis response:", cleanText.substring(0, 200));
     throw new Error(`Failed to parse KPI analysis: ${error instanceof Error ? error.message : 'Invalid JSON'}`);

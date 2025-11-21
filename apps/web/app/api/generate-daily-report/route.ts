@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzeKpis, detectIssues, generateActions, createDailyReport } from "core-agents/src/orchestrator";
 import { DailyReportPayload } from "shared-types";
 import { getClientData } from "@/lib/dataFetchers";
-import { saveReport } from "@/lib/db";
+import { saveReport, saveIssues, saveActions } from "@/lib/db";
 
 /**
  * POST /api/generate-daily-report
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const markdown = await createDailyReport(payload);
 
     // Step 7: Save to database
-    await saveReport(clientId, {
+    const reportId = await saveReport(clientId, {
       type: "daily",
       report_date: date,
       subject: `Daily Ops Report – ${date}`,
@@ -63,9 +63,17 @@ export async function POST(req: NextRequest) {
       actions
     });
 
-    console.log("[API] Report generated successfully");
+    // Save issues and actions separately for tracking
+    if (issues.length > 0) {
+      await saveIssues(clientId, issues);
+    }
+    if (actions.length > 0) {
+      await saveActions(clientId, actions);
+    }
 
-    return NextResponse.json({ ok: true, markdown, payload });
+    console.log("[API] Report generated successfully:", reportId);
+
+    return NextResponse.json({ ok: true, reportId, markdown, payload });
   } catch (e: any) {
     console.error("[API] Error generating report:", e);
     return NextResponse.json(

@@ -1,12 +1,12 @@
 import { generateDemoClientData } from "./demoClient";
 import { RawClientData } from "shared-types";
+import { createServiceRoleClient } from "./supabase/server";
 
 const DEMO_CLIENT_ID = "demo-client";
 
 /**
  * Fetches operational data for a client on a specific date
- * In demo mode, generates synthetic data
- * In production, calls real integrations (Shopify, WMS, etc.)
+ * Priority: CSV uploads → Integrations → Demo data
  */
 export async function getClientData(clientId: string, date: string): Promise<RawClientData> {
   // Demo mode - return generated data
@@ -14,42 +14,79 @@ export async function getClientData(clientId: string, date: string): Promise<Raw
     return generateDemoClientData(date);
   }
 
-  // --- REAL INTEGRATIONS STUBS ---
-  // TODO: Implement actual SDK calls for production clients
-  //
-  // Example pattern for real integrations:
-  //
-  // const integrations = await getClientIntegrations(clientId);
-  //
-  // const shopifyData = integrations.shopify
-  //   ? await fetchShopifyOrders(integrations.shopify, date)
-  //   : null;
-  //
-  // const wmsData = integrations.wms
-  //   ? await fetchWmsMetrics(integrations.wms, date)
-  //   : null;
-  //
-  // const staffData = integrations.payroll
-  //   ? await fetchStaffingData(integrations.payroll, date)
-  //   : null;
-  //
-  // const supportData = integrations.gmail
-  //   ? await fetchSupportTickets(integrations.gmail, date)
-  //   : null;
-  //
-  // const financeData = integrations.stripe
-  //   ? await fetchFinanceData(integrations.stripe, date)
-  //   : null;
-  //
-  // return {
-  //   sales: shopifyData || { salesToday: 0, orders: 0, returns: 0 },
-  //   warehouse: wmsData || { pickAccuracy: 0, cph: 0, mispicks: 0, overtimeHours: 0, stuckOrders: 0 },
-  //   staff: staffData || { headcount: 0, shifts: [], overtimeRisk: false },
-  //   support: supportData || { ticketsToday: 0, autoResolved: 0, csat: 0, refundTickets: 0 },
-  //   finance: financeData || { revenue: 0, refundsAmount: 0, grossMarginPct: 0 }
-  // };
+  // Try to get data from recent CSV uploads
+  const csvData = await getDataFromCSVUploads(clientId);
+  if (csvData) {
+    console.log('[DataFetchers] Using data from CSV uploads');
+    return csvData;
+  }
 
-  throw new Error(`Non-demo data fetch not implemented yet for client: ${clientId}`);
+  // Try integrations (if configured)
+  // const integrationData = await getDataFromIntegrations(clientId, date);
+  // if (integrationData) {
+  //   return integrationData;
+  // }
+
+  // Fallback: Return empty/default data
+  console.warn('[DataFetchers] No data source found, using defaults');
+  return getDefaultClientData();
+}
+
+/**
+ * Get data from recent CSV uploads
+ * Combines data from the most recent upload of each type
+ */
+async function getDataFromCSVUploads(clientId: string): Promise<RawClientData | null> {
+  const supabase = createServiceRoleClient();
+
+  // Get most recent processed uploads for each data type
+  const { data: uploads, error } = await supabase
+    .from('csv_uploads')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('status', 'processed')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error || !uploads || uploads.length === 0) {
+    console.log('[DataFetchers] No CSV uploads found');
+    return null;
+  }
+
+  // Combine data from uploads
+  let result: Partial<RawClientData> = {};
+
+  for (const upload of uploads) {
+    const uploadData = upload.processed_data as Partial<RawClientData>;
+    if (uploadData) {
+      result = {
+        ...result,
+        ...uploadData,
+      };
+    }
+  }
+
+  // Fill in missing sections with defaults
+  return {
+    sales: result.sales || { salesToday: 0, orders: 0, returns: 0 },
+    warehouse: result.warehouse || { pickAccuracy: 0, cph: 0, mispicks: 0, overtimeHours: 0, stuckOrders: 0 },
+    staff: result.staff || { headcount: 0, shifts: [], overtimeRisk: false },
+    support: result.support || { ticketsToday: 0, autoResolved: 0, csat: 0, refundTickets: 0 },
+    finance: result.finance || { revenue: 0, refundsAmount: 0, grossMarginPct: 0 },
+  };
+}
+
+/**
+ * Get default/empty client data
+ */
+function getDefaultClientData(): RawClientData {
+  return {
+    sales: { salesToday: 0, orders: 0, returns: 0 },
+    warehouse: { pickAccuracy: 0, cph: 0, mispicks: 0, overtimeHours: 0, stuckOrders: 0 },
+    staff: { headcount: 0, shifts: [], overtimeRisk: false },
+    support: { ticketsToday: 0, autoResolved: 0, csat: 0, refundTickets: 0 },
+    finance: { revenue: 0, refundsAmount: 0, grossMarginPct: 0 },
+  };
 }
 
 /**

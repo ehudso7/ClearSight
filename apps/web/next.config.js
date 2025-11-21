@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['core-agents', 'shared-types'],
+  // Enable instrumentation for Sentry
   experimental: {
-    serverComponentsExternalPackages: ['openai'],
+    instrumentationHook: true,
   },
-}
+  
+  // Suppress Supabase auth warnings in development
+  webpack: (config) => {
+    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
+    return config;
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
